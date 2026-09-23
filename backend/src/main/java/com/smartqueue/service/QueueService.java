@@ -17,15 +17,18 @@ public class QueueService {
     private final QueueEntryRepository queueEntryRepository;
     private final CheckoutTimePredictor checkoutTimePredictor;
     private final CounterAllocator counterAllocator;
+    private final FairQueueSelector fairQueueSelector;
 
     public QueueService(
             QueueEntryRepository queueEntryRepository,
             CheckoutTimePredictor checkoutTimePredictor,
-            CounterAllocator counterAllocator
+            CounterAllocator counterAllocator,
+            FairQueueSelector fairQueueSelector
     ) {
         this.queueEntryRepository = queueEntryRepository;
         this.checkoutTimePredictor = checkoutTimePredictor;
         this.counterAllocator = counterAllocator;
+        this.fairQueueSelector = fairQueueSelector;
     }
 
     @Transactional
@@ -92,19 +95,15 @@ public class QueueService {
             );
         }
 
-        QueueEntry nextCustomer =
+        List<QueueEntry> waitingCustomers =
                 queueEntryRepository
                         .findByCounterIdAndStatusOrderByAssignedAtAsc(
                                 counterId,
                                 QueueStatus.WAITING
-                        )
-                        .stream()
-                        .findFirst()
-                        .orElseThrow(() ->
-                                new IllegalStateException(
-                                        "No waiting customer found for this counter"
-                                )
                         );
+
+        QueueEntry nextCustomer =
+                fairQueueSelector.selectNext(waitingCustomers);
 
         nextCustomer.startService();
 

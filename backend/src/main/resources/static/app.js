@@ -34,12 +34,47 @@ async function request(url, options = {}) {
 async function loadDashboard() {
     try {
         await Promise.all([
+            loadStats(),
             loadCounters(),
             loadActiveQueue()
         ]);
     } catch (error) {
         showMessage(error.message, "error");
     }
+}
+
+async function loadStats() {
+    const stats = await request("/api/dashboard/stats");
+
+    document.getElementById("stat-active").textContent =
+        stats.activeCustomers;
+
+    document.getElementById("stat-waiting").textContent =
+        stats.waitingCustomers;
+
+    document.getElementById("stat-serving").textContent =
+        stats.servingCustomers;
+
+    document.getElementById("stat-completed").textContent =
+        stats.completedCustomers;
+
+    document.getElementById("stat-counters").textContent =
+        `${stats.openCounters} / ${stats.totalCounters}`;
+
+    document.getElementById("stat-predicted").textContent =
+        formatSeconds(
+            Math.round(stats.averagePredictedServiceSeconds)
+        );
+
+    document.getElementById("stat-actual").textContent =
+        formatSeconds(
+            Math.round(stats.averageActualServiceSeconds)
+        );
+
+    document.getElementById("stat-mae").textContent =
+        formatSeconds(
+            Math.round(stats.meanAbsoluteErrorSeconds)
+        );
 }
 
 async function loadCounters() {
@@ -59,18 +94,32 @@ async function loadCounters() {
             </div>
 
             <div class="counter-right">
-                <span class="counter-status ${counter.status.toLowerCase()}">
-                    ${counter.status}
-                </span>
+    <span class="counter-status ${counter.status.toLowerCase()}">
+        ${counter.status}
+    </span>
 
-                <button
-                    class="action-button"
-                    onclick="startNextCustomer(${counter.id})"
-                    ${counter.status !== "OPEN" ? "disabled" : ""}
-                >
-                    Start Next
-                </button>
-            </div>
+    <button
+        class="action-button"
+        onclick="startNextCustomer(${counter.id})"
+        ${counter.status !== "OPEN" ? "disabled" : ""}
+    >
+        Start Next
+    </button>
+
+    <button
+        class="action-button ${
+        counter.status === "OPEN"
+            ? "close-counter-button"
+            : "open-counter-button"
+    }"
+        onclick="toggleCounterStatus(
+            ${counter.id},
+            '${counter.status}'
+        )"
+    >
+        ${counter.status === "OPEN" ? "Close" : "Open"}
+    </button>
+</div>
         </div>
     `).join("");
 }
@@ -205,6 +254,40 @@ async function startNextCustomer(counterId) {
 
         showMessage(
             `${result.token} is now being served at ${result.counterName}.`,
+            "success"
+        );
+
+        await loadDashboard();
+    } catch (error) {
+        showMessage(error.message, "error");
+    }
+}
+
+async function toggleCounterStatus(
+    counterId,
+    currentStatus
+) {
+    const requestedStatus =
+        currentStatus === "OPEN"
+            ? "CLOSED"
+            : "OPEN";
+
+    try {
+        const result = await request(
+            `/api/counters/${counterId}/status`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    status: requestedStatus
+                })
+            }
+        );
+
+        showMessage(
+            `${result.name} is now ${result.status}.`,
             "success"
         );
 
