@@ -27,4 +27,10 @@ public interface QueueEntryRepository
             QueueStatus status);
 
     long countByStatus(QueueStatus status);
+
+    List<QueueEntry> findTop50ByOrderByArrivalTimeDesc();
+
+    List<QueueEntry> findTop50ByStatusOrderByArrivalTimeDesc(
+            QueueStatus status
+    );
 }

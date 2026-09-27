@@ -22,6 +22,7 @@ public record QueueEntryResponse(
         LocalDateTime arrivalTime,
         LocalDateTime serviceStartedAt,
         LocalDateTime serviceCompletedAt,
+        LocalDateTime cancelledAt,
         Integer actualServiceSeconds
 ) {
 
@@ -41,7 +42,8 @@ public record QueueEntryResponse(
                 entry.getArrivalTime(),
                 entry.getServiceStartedAt(),
                 entry.getServiceCompletedAt(),
+                entry.getCancelledAt(),
                 entry.getActualServiceSeconds()
         );
     }
-}
+}

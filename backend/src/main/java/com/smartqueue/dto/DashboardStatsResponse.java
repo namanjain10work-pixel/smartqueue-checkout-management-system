@@ -4,6 +4,7 @@ public record DashboardStatsResponse(
         long waitingCustomers,
         long servingCustomers,
         long completedCustomers,
+        long cancelledCustomers,
         long activeCustomers,
         long openCounters,
         long totalCounters,
@@ -11,4 +12,4 @@ public record DashboardStatsResponse(
         double averageActualServiceSeconds,
         double meanAbsoluteErrorSeconds
 ) {
-}
+}

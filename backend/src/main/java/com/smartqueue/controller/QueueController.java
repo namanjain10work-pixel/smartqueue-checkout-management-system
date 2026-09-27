@@ -7,6 +7,8 @@ import com.smartqueue.service.QueueService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import com.smartqueue.model.QueueStatus;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -33,6 +35,14 @@ public class QueueController {
         return queueService.getActiveQueue();
     }
 
+    @GetMapping("/history")
+    public List<QueueEntryResponse> getQueueHistory(
+            @RequestParam(required = false)
+            QueueStatus status
+    ) {
+        return queueService.getQueueHistory(status);
+    }
+
     @PostMapping("/counters/{counterId}/next")
     public QueueEntryResponse startNextCustomer(
             @PathVariable Long counterId
@@ -46,4 +56,11 @@ public class QueueController {
     ) {
         return queueService.completeCustomer(entryId);
     }
-}
+
+    @PostMapping("/{entryId}/cancel")
+    public QueueEntryResponse cancelCustomer(
+            @PathVariable Long entryId
+    ) {
+        return queueService.cancelCustomer(entryId);
+    }
+}

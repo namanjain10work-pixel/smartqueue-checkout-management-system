@@ -53,6 +53,8 @@ public class QueueEntry {
 
     private LocalDateTime serviceCompletedAt;
 
+    private LocalDateTime cancelledAt;
+
     private Integer actualServiceSeconds;
 
     protected QueueEntry() {
@@ -113,6 +115,18 @@ public class QueueEntry {
         this.actualServiceSeconds = (int) Math.max(1, duration);
     }
 
+    public void cancel() {
+
+        if (status != QueueStatus.WAITING) {
+            throw new IllegalStateException(
+                    "Only a waiting customer can be cancelled"
+            );
+        }
+
+        status = QueueStatus.CANCELLED;
+        cancelledAt = LocalDateTime.now();
+    }
+
     public Long getId() {
         return id;
     }
@@ -171,5 +185,9 @@ public class QueueEntry {
 
     public Integer getActualServiceSeconds() {
         return actualServiceSeconds;
+    }
+
+    public LocalDateTime getCancelledAt() {
+        return cancelledAt;
     }
 }

@@ -36,7 +36,9 @@ async function loadDashboard() {
         await Promise.all([
             loadStats(),
             loadCounters(),
-            loadActiveQueue()
+            loadActiveQueue(),
+            loadQueueHistory(),
+            loadCounterDistribution()
         ]);
     } catch (error) {
         showMessage(error.message, "error");
@@ -58,6 +60,9 @@ async function loadStats() {
     document.getElementById("stat-completed").textContent =
         stats.completedCustomers;
 
+    document.getElementById("stat-cancelled").textContent =
+        stats.cancelledCustomers;
+
     document.getElementById("stat-counters").textContent =
         `${stats.openCounters} / ${stats.totalCounters}`;
 
@@ -75,6 +80,40 @@ async function loadStats() {
         formatSeconds(
             Math.round(stats.meanAbsoluteErrorSeconds)
         );
+
+    renderStatusDistribution(stats);
+}
+
+function renderStatusDistribution(stats) {
+    const values = {
+        waiting: stats.waitingCustomers,
+        serving: stats.servingCustomers,
+        completed: stats.completedCustomers,
+        cancelled: stats.cancelledCustomers
+    };
+
+    // The largest value receives a full-width bar.
+    const maxValue = Math.max(
+        ...Object.values(values),
+        1
+    );
+
+    Object.entries(values).forEach(([status, value]) => {
+        const valueElement =
+            document.getElementById(
+                `chart-${status}-value`
+            );
+
+        const barElement =
+            document.getElementById(
+                `chart-${status}-bar`
+            );
+
+        valueElement.textContent = value;
+
+        barElement.style.width =
+            `${(value / maxValue) * 100}%`;
+    });
 }
 
 async function loadCounters() {
@@ -152,14 +191,21 @@ async function loadActiveQueue() {
         const action =
             entry.status === "SERVING"
                 ? `
-                    <button
-                        class="action-button complete-button"
-                        onclick="completeCustomer(${entry.id})"
-                    >
-                        Complete
-                    </button>
-                  `
-                : "<span>Waiting</span>";
+            <button
+                class="action-button complete-button"
+                onclick="completeCustomer(${entry.id})"
+            >
+                Complete
+            </button>
+          `
+                : `
+            <button
+                class="action-button cancel-button"
+                onclick="cancelCustomer(${entry.id})"
+            >
+                Cancel
+            </button>
+          `;
 
         return `
             <tr>
@@ -180,6 +226,156 @@ async function loadActiveQueue() {
             </tr>
         `;
     }).join("");
+}
+
+async function loadQueueHistory(selectedStatus = null) {
+
+    const historyFilter =
+        document.getElementById("history-filter");
+
+    const currentStatus =
+        selectedStatus !== null
+            ? selectedStatus
+            : historyFilter.value;
+
+    const endpoint =
+        currentStatus
+            ? `/api/queue/history?status=${encodeURIComponent(currentStatus)}`
+            : "/api/queue/history";
+
+    const entries = await request(endpoint);
+
+    const historyBody =
+        document.getElementById("history-body");
+
+    const historyCount =
+        document.getElementById("history-count");
+
+    historyCount.textContent =
+        `${entries.length} ${entries.length === 1 ? "record" : "records"}`;
+
+    if (entries.length === 0) {
+        historyBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty-state">
+                    No queue-history records found for this status.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    historyBody.innerHTML = entries.map(entry => {
+
+        const statusClass =
+            `status-${entry.status.toLowerCase()}`;
+
+        const actualTime =
+            entry.actualServiceSeconds !== null
+                ? formatSeconds(entry.actualServiceSeconds)
+                : "-";
+
+        const lastEvent =
+            entry.cancelledAt
+            ?? entry.serviceCompletedAt
+            ?? entry.serviceStartedAt
+            ?? entry.arrivalTime;
+
+        return `
+            <tr>
+                <td>
+                    <strong>${escapeHtml(entry.token)}</strong>
+                </td>
+
+                <td>${escapeHtml(entry.customerName)}</td>
+
+                <td>${entry.itemCount}</td>
+
+                <td>${escapeHtml(entry.counterName)}</td>
+
+                <td>
+                    <span class="status-badge ${statusClass}">
+                        ${entry.status}
+                    </span>
+                </td>
+
+                <td>
+                    ${formatSeconds(entry.predictedServiceSeconds)}
+                </td>
+
+                <td>${actualTime}</td>
+
+                <td>${formatHistoryDateTime(lastEvent)}</td>
+            </tr>
+        `;
+    }).join("");
+}
+
+async function loadCounterDistribution() {
+    const entries = await request("/api/queue/history");
+
+    const container =
+        document.getElementById("counter-distribution");
+
+    const counterCounts = entries.reduce((counts, entry) => {
+        const counterName =
+            entry.counterName || "Unassigned";
+
+        counts[counterName] =
+            (counts[counterName] || 0) + 1;
+
+        return counts;
+    }, {});
+
+    const counterRows = Object.entries(counterCounts)
+        .sort(([firstName], [secondName]) =>
+            firstName.localeCompare(secondName)
+        );
+
+    if (counterRows.length === 0) {
+        container.innerHTML = `
+            <p class="empty-state">
+                No counter allocation data available.
+            </p>
+        `;
+        return;
+    }
+
+    const maxCount = Math.max(
+        ...counterRows.map(([, count]) => count),
+        1
+    );
+
+    container.innerHTML = counterRows
+        .map(([counterName, count]) => `
+            <div class="chart-row">
+
+                <div class="chart-label">
+                    <span>${escapeHtml(counterName)}</span>
+                    <strong>${count}</strong>
+                </div>
+
+                <div class="chart-track">
+                    <div
+                        class="chart-bar chart-counter"
+                        style="width: ${(count / maxCount) * 100}%"
+                    ></div>
+                </div>
+
+            </div>
+        `)
+        .join("");
+}
+
+function formatHistoryDateTime(value) {
+
+    if (!value) {
+        return "-";
+    }
+
+    return value
+        .replace("T", " ")
+        .split(".")[0];
 }
 
 async function joinQueue(event) {
@@ -318,6 +514,35 @@ async function completeCustomer(entryId) {
     }
 }
 
+async function cancelCustomer(entryId) {
+
+    const confirmed = window.confirm(
+        "Are you sure you want to cancel this waiting customer?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const result = await request(
+            `/api/queue/${entryId}/cancel`,
+            {
+                method: "POST"
+            }
+        );
+
+        showMessage(
+            `${result.token} was cancelled and removed from the active queue.`,
+            "success"
+        );
+
+        await loadDashboard();
+    } catch (error) {
+        showMessage(error.message, "error");
+    }
+}
+
 function formatSeconds(seconds) {
     if (seconds === null || seconds === undefined) {
         return "--";
@@ -359,4 +584,4 @@ function escapeHtml(value) {
         /[&<>"']/g,
         character => characters[character]
     );
-}
+}

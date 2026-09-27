@@ -35,6 +35,11 @@ public class DashboardService {
         long completedCustomers =
                 queueEntryRepository.countByStatus(QueueStatus.COMPLETED);
 
+        long cancelled =
+                queueEntryRepository.countByStatus(
+                        QueueStatus.CANCELLED
+                );
+
         long activeCustomers =
                 waitingCustomers + servingCustomers;
 
@@ -84,6 +89,7 @@ public class DashboardService {
                 waitingCustomers,
                 servingCustomers,
                 completedCustomers,
+                cancelled,
                 activeCustomers,
                 openCounters,
                 totalCounters,

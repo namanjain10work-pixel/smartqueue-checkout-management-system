@@ -131,4 +131,45 @@ public class QueueService {
 
         return QueueEntryResponse.from(savedEntry);
     }
-}
+
+    @Transactional
+    public QueueEntryResponse cancelCustomer(Long entryId) {
+
+        QueueEntry entry = queueEntryRepository
+                .findById(entryId)
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "Queue entry not found with ID: " + entryId
+                        )
+                );
+
+        entry.cancel();
+
+        QueueEntry savedEntry =
+                queueEntryRepository.save(entry);
+
+        return QueueEntryResponse.from(savedEntry);
+    }
+
+    @Transactional(readOnly = true)
+    public List<QueueEntryResponse> getQueueHistory(
+            QueueStatus status
+    ) {
+        List<QueueEntry> entries;
+
+        if (status == null) {
+            entries =
+                    queueEntryRepository
+                            .findTop50ByOrderByArrivalTimeDesc();
+        } else {
+            entries =
+                    queueEntryRepository
+                            .findTop50ByStatusOrderByArrivalTimeDesc(status);
+        }
+
+        return entries
+                .stream()
+                .map(QueueEntryResponse::from)
+                .toList();
+    }
+}
