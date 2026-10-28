@@ -29,12 +29,34 @@ def _load_model_bundle() -> dict[str, Any] | None:
 
 
 def _heuristic_prediction(
-    item_count: int, payment_method: str, hour_of_day: int
+    item_count: int,
+    payment_method: str,
+    hour_of_day: int,
 ) -> int:
-    payment_overhead = {"upi": 8, "card": 15, "cash": 24}[payment_method]
-    peak_overhead = 12 if hour_of_day in {12, 13, 17, 18, 19, 20} else 0
-    predicted = 32 + (item_count * 4.8) + payment_overhead + peak_overhead
-    return round(max(45, min(predicted, 900)))
+    payment_method = payment_method.strip().lower()
+
+    payment_overhead = {
+        "upi": 8,
+        "card": 15,
+        "cash": 25,
+    }[payment_method]
+
+    peak_overhead = (
+        14
+        if hour_of_day in {12, 13, 17, 18, 19, 20}
+        else 0
+    )
+
+    predicted = (
+        32
+        + item_count * 5
+        + payment_overhead
+        + peak_overhead
+    )
+
+    return round(
+        max(45, min(predicted, 900))
+    )
 
 
 def predict_service_time(
@@ -67,7 +89,7 @@ def predict_service_time(
 
     return (
         _heuristic_prediction(item_count, payment_method, moment.hour),
-        "explainable fallback formula",
+        "RULE_BASELINE_V1",
     )
 
 
