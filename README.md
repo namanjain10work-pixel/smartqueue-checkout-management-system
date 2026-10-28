@@ -42,6 +42,11 @@ A healthy Python process does not by itself prove that a trained model is loaded
 
 Maven Wrapper is included under backend; a global Maven installation is unnecessary.
 
+## Cloud demo deployment
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Render and Neon setup.
+`render.yaml` describes the two free services; credentials are supplied separately.
+
 ## Initial Python and model setup
 
 Run from the SmartQueue project root:

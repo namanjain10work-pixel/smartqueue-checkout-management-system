@@ -1,0 +1,50 @@
+# Optional reproducible Blueprint. No credentials belong in this file.
+# The initial services can also be created via the connected Render tools.
+services:
+  - type: web
+    name: smartqueue-ml
+    runtime: python
+    region: singapore
+    plan: free
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements-render.txt && python scripts/train_model.py
+    startCommand: python -m uvicorn app.ml_api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12
+      - key: TZ
+        value: Asia/Kolkata
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: OMP_NUM_THREADS
+        value: "1"
+  - type: web
+    name: smartqueue-web
+    runtime: docker
+    region: singapore
+    plan: free
+    branch: main
+    autoDeployTrigger: commit
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/dashboard/stats
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: postgres,demo
+      - key: SMARTQUEUE_ML_ENABLED
+        value: "true"
+      - key: SMARTQUEUE_ML_BASE_URL
+        fromService:
+          type: web
+          name: smartqueue-ml
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: SMARTQUEUE_DB_URL
+        sync: false
+      - key: SMARTQUEUE_DB_USERNAME
+        sync: false
+      - key: SMARTQUEUE_DB_PASSWORD
+        sync: false
+      - key: TZ
+        value: Asia/Kolkata

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Locale;
 
 import org.springframework.http.MediaType;
@@ -37,12 +38,15 @@ public class CheckoutTimePredictor {
     ) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(3))
                 .build();
 
+        JdkClientHttpRequestFactory requestFactory =
+                new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(5));
+
         this.mlRestClient = RestClient.builder()
-                .requestFactory(
-                        new JdkClientHttpRequestFactory(httpClient)
-                )
+                .requestFactory(requestFactory)
                 .baseUrl(mlBaseUrl)
                 .build();
 
