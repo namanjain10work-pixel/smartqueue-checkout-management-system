@@ -1,5 +1,9 @@
 # SmartQueue
 
+**[🚀 Live Demo](https://smartqueue-web.onrender.com/index.html)**
+
+Free hosting may take a couple of minutes to wake up after inactivity.
+
 SmartQueue is a retail checkout queue-management prototype built with Java 21,
 Spring Boot, and an optional Python ML prediction service. It assigns customers
 to the open counter with the least predicted remaining workload and applies a
